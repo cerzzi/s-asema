@@ -15,13 +15,15 @@ void setup()
 { 
   Serial.begin(9600);
   lcd.begin(16,2);
+  initSpecialChar();
   lcd.setCursor(0,0);
-  for(int i = 0; i < 3; i++)
+  
+  for(int i = 1; i < 7; i++)
   {
     lcd.write(i);
   }
   
-  delay(2000);
+  delay(20000);
   lcd.clear();
   lcd.setCursor(0,1);
   lcd.print("Miettii...");
@@ -45,7 +47,7 @@ void loop()
       lcd.print(rawValue);
       lcd.print("   ");
       lcd.print(rawValue * (5.0/1024.0));
-      lcd.print("v"));
+      lcd.print("v");
       
     }
     
@@ -110,40 +112,70 @@ float convertVoltageToTemperature(float voltage)
 
 void initSpecialChar()
 {
-  byte charA[8] = {
+  byte AwithRing[8] = {
+  B00100,
+  B01010,
+  B01110,
+  B00001,
+  B01111,
+  B10001,
+  B01111,
+  };
+  
+  byte AwithDots[8] = {
+  B01010,
+  B00000,
+  B01110,
+  B00001,
+  B01111,
+  B10001,
+  B01111,
+  };
+  
+  byte OwithDots[8] = {
+  B01010,
+  B00000,
   B01110,
   B10001,
   B10001,
-  B10101,
-  B10101,
+  B10001,
+  B01110,
+  };
+  
+  byte CapitalAwithRing[8] = {
+  B00100,
+  B01010,
+  B01110,
+  B10001,
+  B11111,
   B10001,
   B10001,
-  B01110
-};
-
-byte charO[8] = {
+  };
+  
+  byte CapitalAwithDots[8] = {
+  B01010,
+  B00000,
+  B01110,
+  B10001,
+  B11111,
+  B10001,
+  B10001,
+  };
+  
+  byte CapitalOwithDots[8] = {
+  B01010,
+  B00000,
   B01110,
   B10001,
   B10001,
-  B10101,
-  B10101,
   B10001,
-  B10001,
-  B01110
-};
-
-byte charR[8] = {
   B01110,
-  B10001,
-  B10001,
-  B10111,
-  B10101,
-  B10001,
-  B10001,
-  B01110
-};
-  // Create custom characters on the LCD
-  lcd.createChar(0, charA);  // 'Ä'
-  lcd.createChar(1, charO);  // 'Ö'
-  lcd.createChar(2, charR);  // 'Å'
+  };
+  
+  lcd.createChar(1, AwithRing);
+  lcd.createChar(2, AwithDots);
+  lcd.createChar(3, OwithDots);
+  lcd.createChar(4, CapitalAwithRing);
+  lcd.createChar(5, CapitalAwithDots);
+  lcd.createChar(6, CapitalOwithDots);
 }
