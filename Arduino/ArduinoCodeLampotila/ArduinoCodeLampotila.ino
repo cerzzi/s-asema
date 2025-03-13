@@ -18,16 +18,39 @@ void setup()
   initSpecialChar();
   lcd.setCursor(0,0);
   
-  for(int i = 1; i < 7; i++)
+  for(int i = 65; i < 91; i++)
   {
     lcd.write(i);
+    delay(250);
+
+    if(i == 80)
+    {
+      lcd.setCursor(0,1);
+    }
   }
-  
-  delay(20000);
+
+  for(int i = 4; i < 7; i++)
+  {
+    lcd.write(i);
+    delay(250);
+  }
+
+  delay(2000);
+
   lcd.clear();
   lcd.setCursor(0,1);
-  lcd.print("Miettii...");
-  delay(3000);
+  for(int i = 0; i < 4; i++)
+  {
+     lcd.clear();
+     lcd.print("Miettii.");
+     delay(700);
+     lcd.clear();
+     lcd.print("Miettii..");
+     delay(700);
+     lcd.clear();
+     lcd.print("Miettii...");
+     delay(700);
+  }
 }
 
 void loop()
@@ -47,10 +70,8 @@ void loop()
       lcd.print(rawValue);
       lcd.print("   ");
       lcd.print(rawValue * (5.0/1024.0));
-      lcd.print("v");
-      
-    }
-    
+      lcd.print("v"); 
+    } 
   }
 
   //Jännite arvo
