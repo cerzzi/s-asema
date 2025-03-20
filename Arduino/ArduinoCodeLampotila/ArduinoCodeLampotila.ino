@@ -8,6 +8,9 @@ const int analogPin = A1;
 float voltage = 0;
 float rawValue = 0;
 float temperature = 0;
+int count = 0;
+int row = 0;
+bool lol = false;
 
 unsigned long duration = 10000;
 
@@ -16,24 +19,9 @@ void setup()
   Serial.begin(9600);
   lcd.begin(16,2);
   initSpecialChar();
-  lcd.setCursor(0,0);
   
-  for(int i = 65; i < 91; i++)
-  {
-    lcd.write(i);
-    delay(250);
-
-    if(i == 80)
-    {
-      lcd.setCursor(0,1);
-    }
-  }
-
-  for(int i = 4; i < 7; i++)
-  {
-    lcd.write(i);
-    delay(250);
-  }
+  while(true)
+}
 
   delay(2000);
 
@@ -71,7 +59,7 @@ void loop()
       lcd.print("   ");
       lcd.print(rawValue * (5.0/1024.0));
       lcd.print("v"); 
-    } 
+    }
   }
 
   //Jännite arvo
