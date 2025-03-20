@@ -7,6 +7,7 @@ int row = 0;
 int count = 0;
 
 void setup() {
+  Serial.begin(9600);
   lcd.begin(16,2);
   initSpecialChar();
   lcd.setCursor(0,0);
@@ -16,13 +17,32 @@ void loop() {
   
   for(int i = 65; i < 94; i++)
   {
-    lcd.setCursor(row,count);
+    delay(250);
     lcd.clear();
-    lcd.write(i);
+    lcd.setCursor(count,row);
+    Serial.println(count);
+
+    if(i > 90)
+    {
+      lcd.write(i - 90);
+    }
+    
+    else
+    {
+      lcd.write(i);
+    }
 
     if(row == 0 && count == 15)
     {
       row = 1;
+      Serial.println("juu");
+      count++;
+    }
+
+    else if(row == 0)
+    {
+      Serial.println("ei");
+      count++;
     }
 
     if(row == 1 && count == 0)
@@ -30,12 +50,7 @@ void loop() {
       row = 0;
     }
     
-    if(row == 0);
-    {
-      count++;
-    }
-
-    if(row == 1);
+    else if(row == 1)
     {
       count--;
     }
@@ -104,10 +119,10 @@ void initSpecialChar()
   B01110,
   };
   
-  lcd.createChar(1, AwithRing);
-  lcd.createChar(2, AwithDots);
-  lcd.createChar(3, OwithDots);
-  lcd.createChar(91, CapitalAwithRing);
-  lcd.createChar(92, CapitalAwithDots);
-  lcd.createChar(93, CapitalOwithDots);
+  lcd.createChar(1, CapitalAwithRing);
+  lcd.createChar(2, CapitalAwithDots);
+  lcd.createChar(3, CapitalOwithDots);
+  lcd.createChar(4, AwithRing);
+  lcd.createChar(5, AwithDots);
+  lcd.createChar(6, OwithDots);
 }
