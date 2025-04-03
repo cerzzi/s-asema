@@ -13,58 +13,71 @@ void setup() {
     Serial.begin(9600);
     lcd.begin(16,2);
     initSpecialChar();  // Initialize special characters for LCD
+    lcd.setCursor(4,0);  
+    lcd.print("Starting");
+    lcd.setCursor(7,1); 
+    lcd.print("up");
 
-    lcd.clear();
-    lcd.setCursor(0,1);
 }
 
 // Function to get a smoothed sensor reading using averaging
-float getAverageReading()
+float getAverageVoltageReading()
 {
   unsigned long duration = 10000;
-  float rawValue = 0;
   unsigned long startTime = millis();
-  rawValue = 0;
+  float rawValue = 0;
+  int i = 0;
 
   while(millis() - startTime < duration)
   {
-    int temp = analogRead(analogPin);
-    
-    if(rawValue < temp )
-    {
-      rawValue = temp;
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("RV:");
-      lcd.print(temp);
-      lcd.setCursor(0,1);
-      lcd.print("V: ");
-      lcd.print(temp * (5.0 / 1024.0));
-    }
+    rawValue += analogRead(analogPin);
+    i++;
   }
+  rawValue = rawValue/i;
+  Serial.println(rawValue);
   return rawValue;
 }
 
+float getAverageFrequencyReading()
+{
+  unsigned long duration = 10000;  // Measure for 10 seconds
+  unsigned long startTime = millis();
+  unsigned long period = 0;
+  unsigned long periodSum = 0;
+  int i = 0;
+
+  while (millis() - startTime < duration)
+  {
+    // Measure HIGH and LOW duration
+    unsigned long highTime = pulseIn(digitalPin, HIGH, 1000000);  // Timeout to avoid getting stuck
+    unsigned long lowTime = pulseIn(digitalPin, LOW, 1000000);
+
+    unsigned long period = highTime + lowTime;  // Total period of one cycle
+
+    if (period > 0) {
+      periodSum += period;
+      i++;
+    }
+  }
+
+  if (i == 0) return 0;  // Prevent division by zero
+
+  float avgPeriod = (float)periodSum / i;  // Average period in microseconds
+  float averageFrequency = 1000000.0 / avgPeriod;  // Convert to Hz
+
+  return averageFrequency;
+}
+
+
 void loop()
 {
-    float rawValue = getAverageReading();  // Get averaged sensor value
+    float rawValue = getAverageVoltageReading();  // Get averaged sensor value
     float voltage = rawValue * (5.0 / 1024.0);  // Convert to voltage
     float temperature = convertVoltageToTemperature(voltage);  // Convert to temperature
-
-
-    // Measure HIGH duration
-    unsigned long highTime = pulseIn(digitalPin, HIGH);
-    // Measure LOW duration
-    unsigned long lowTime = pulseIn(digitalPin, LOW);
     
-    // Calculate period (HIGH + LOW time)
-    unsigned long period = highTime + lowTime;
-
-    if (period >= 0) {  // Avoid division by zero
-      float frequency = 1000000.0 / period;  // Convert to Hz (microseconds to seconds)
-      float windSpeed = -0.24 + frequency * 0.699;
-      printValue(temperature, voltage, rawValue, frequency, windSpeed);  // Display temperature on LCD
-    }
+    float frequency = getAverageFrequencyReading(); // Convert to Hz (microseconds to seconds)
+    float windSpeed = -0.24 + frequency * 0.699;
+    printValue(temperature, voltage, rawValue, frequency, windSpeed);  // Display temperature on LCD
 }
 
 // Function to display temperature on LCD

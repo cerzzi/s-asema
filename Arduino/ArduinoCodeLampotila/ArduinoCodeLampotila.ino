@@ -52,9 +52,6 @@ void printValue(float value ,float voltage, float rawValue) {
     lcd.print(" ");
     lcd.print("U:");
     lcd.print(voltage);
-    
-
-
 }
 
 // Function to convert voltage to temperature

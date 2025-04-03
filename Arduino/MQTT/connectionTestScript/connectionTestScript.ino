@@ -1,7 +1,7 @@
 #include <Ethernet.h>
 #include <PubSubClient.h>
 
-byte server[] = { 10,6,0,21 }; // MQTT-palvelimen IP-osoite
+byte server[] = { 10,6,0,23 }; // MQTT-palvelimen IP-osoite
 unsigned int Port = 1883;  // MQTT-palvelimen portti
 EthernetClient ethClient; // Ethernet-kirjaston client-olio
 PubSubClient client(server, Port, ethClient); // PubSubClient-olion luominen
