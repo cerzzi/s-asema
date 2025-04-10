@@ -1,4 +1,18 @@
 #include <LiquidCrystal.h> 
+#include <Ethernet.h>
+#include <PubSubClient.h>
+#include <TimerOne.h>
+
+byte server[] = { 10,6,0,23 }; // MQTT-palvelimen IP-osoite
+unsigned int Port = 1883;  // MQTT-palvelimen portti
+EthernetClient ethClient; // Ethernet-kirjaston client-olio
+PubSubClient client(server, Port, ethClient); // PubSubClient-olion luominen
+
+#define outTopic   "ICT4_out_2020" // Aihe, jolle viesti lähetetään
+
+static uint8_t mymac[6] = { 0x44,0x76,0x58,0x10,0x00,0x62 }; // MAC-osoite Ethernet-liitäntää varten
+
+char* clientId = "a731fsd4"; // MQTT-clientin tunniste
 
 // LCD pin configuration
 const int rs = 12, en = 11, d4 = 5, d5 = 3, d6 = 4, d7 = 2;
@@ -8,16 +22,24 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 const int analogPin = A1;
 const int digitalPin = 7;
 
+float temperature = 0;
+float windSpeed = 0;
+
+bool swap = true;
+
 void setup()
 { 
   pinMode(digitalPin, INPUT);
   Serial.begin(9600);
+  fetch_IP(); // Kutsutaan IP-osoitteen haku-funktiota
   lcd.begin(16,2);
   initSpecialChar();  // Initialize special characters for LCD
   lcd.setCursor(4,0);  
   lcd.print("Starting");
   lcd.setCursor(7,1); 
   lcd.print("up");
+  Timer1.initialize(10000000);
+  Timer1.attachInterrupt(My_timer_int_routine);
 }
 
 // Function to get a smoothed sensor reading using averaging
@@ -67,11 +89,11 @@ void loop()
 {
     float rawValue = getAverageVoltageReading();  // Get averaged sensor value
     float voltage = rawValue * (5.0 / 1024.0);  // Convert to voltage
-    float temperature = convertVoltageToTemperature(voltage);  // Convert to temperature
+    temperature = convertVoltageToTemperature(voltage);  // Convert to temperature
     
     float frequency = getAverageFrequencyReading(); // Convert to Hz (microseconds to seconds)
-    float windSpeed = -0.24 + frequency * 0.699;
-    printValue(temperature, voltage, rawValue, frequency, windSpeed);  // Display temperature on LCD
+    windSpeed = -0.24 + frequency * 0.699;
+    printValue(temperature, voltage, rawValue, frequency, windSpeed);
 }
 
 // Function to display temperature on LCD
@@ -81,15 +103,7 @@ void printValue(float value ,float voltage, float rawValue, float frequency, flo
   lcd.setCursor(0, 0);
   lcd.print("Temp: "); lcd.print(value); lcd.print(" C");
   lcd.setCursor(0, 1);
-  lcd.print("RV:"); lcd.print(rawValue);
-  lcd.print(" ");
-  lcd.print("U:"); lcd.print(voltage);
-  delay(5000);
-  lcd.clear();
-  lcd.setCursor(0,0);
   lcd.print("M/S: "); lcd.print(windSpeed);
-  lcd.setCursor(0,1);
-  lcd.print("F: "); lcd.print(frequency);
 }
 
 // Function to convert voltage to temperature
@@ -110,6 +124,67 @@ float convertVoltageToTemperature(float voltage)
     }
 }
 
+void My_timer_int_routine()
+{
+  send_MQTT_message(temperature, windSpeed); // Kutsutaan MQTT-viestin lähettämis-funktiota
+  Serial.println("PAM");
+}
+
+
+
+void fetch_IP() {
+    bool connectionSuccess = Ethernet.begin(mymac); // Yhdistäminen Ethernet-verkkoon ja tallennetaan yhteyden tila
+    if (!connectionSuccess) {
+        Serial.println("Failed to access Ethernet controller"); // Jos yhteys ei onnistunut -> yhteysvirheilmoitus
+    } else {
+        Serial.println("Connected with IP: " + Ethernet.localIP()); // Onnistuessa tulostetaan IP-osoite
+    }
+}
+
+void send_MQTT_message(float temp, float speed) 
+{
+    static char S_value[15];
+    String S_name = "";
+
+    if(swap)
+    {
+      S_name = "NJS_Temperature";
+      dtostrf(temp,5,3, S_value);
+      swap = false;
+      Serial.println("temp");
+    }
+
+    else
+    {
+      S_name = "NJS_WindSpeed";
+      dtostrf(speed,5,3, S_value);
+      swap = true;
+      Serial.println("wind");
+    }
+
+    char bufa[50];
+    sprintf(bufa, "IOTJS={\"S_name\":\"%s\",\"S_value\":%s}", S_name.c_str(), S_value);
+
+    if (!client.connected()) { // Tarkistetaan onko yhteys MQTT-brokeriin muodostettu
+        connect_MQTT_server(); // Jos yhteyttä ei ollut, kutsutaan yhdistä -funktiota
+    }
+    if (client.connected()) { // Jos yhteys on muodostettu
+        client.publish(outTopic, bufa); // Lähetetään viesti MQTT-brokerille
+        Serial.println("Message sent to MQTT server."); // Tulostetaan viesti onnistuneesta lähettämisestä
+    } else {
+        Serial.println("Failed to send message: not connected to MQTT server."); // Ei yhteyttä -> Yhteysvirheilmoitus
+    }
+}
+
+void connect_MQTT_server() { 
+    Serial.println("Connecting to MQTT"); // Tulostetaan vähän info-viestiä
+    if (client.connect(clientId)) { // Tarkistetaan saadaanko yhteys MQTT-brokeriin
+        Serial.println("Connected OK"); // Yhdistetty onnistuneesti
+    } else {
+        Serial.println("Connection failed."); // Yhdistäminen epäonnistui
+    }    
+}
+
 // Function to initialize special characters on LCD
 void initSpecialChar() 
 {
@@ -127,4 +202,3 @@ void initSpecialChar()
     lcd.createChar(5, CapitalAwithDots);
     lcd.createChar(6, CapitalOwithDots);
 }
-
