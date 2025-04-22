@@ -15,57 +15,68 @@ static uint8_t mymac[6] = { 0x44,0x76,0x58,0x10,0x00,0x62 }; // MAC-osoite Ether
 char* clientId = "a731fsd4"; // MQTT-clientin tunniste
 
 // LCD pin configuration
-const int rs = 12, en = 11, d4 = 5, d5 = 3, d6 = 4, d7 = 2;
+const int rs = 9, en = 6, d4 = 5, d5 = 3, d6 = 4, d7 = 8;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // Analog pin for temperature sensor
 const int analogPin = A1;
 const int digitalPin = 7;
 
+float rawValue = 0;
+float averageFrequency = 0;
+
+float voltage = 0;
 float temperature = 0;
 float windSpeed = 0;
-
-bool swap = true;
+int press = 1;
+float frec = 0;
+bool swap = false;
+bool swap1 = false;
 
 void setup()
 { 
   pinMode(digitalPin, INPUT);
   Serial.begin(9600);
   fetch_IP(); // Kutsutaan IP-osoitteen haku-funktiota
+  pinMode(2, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(2), handleButtonPress, FALLING);
   lcd.begin(16,2);
   initSpecialChar();  // Initialize special characters for LCD
   lcd.setCursor(4,0);  
   lcd.print("Starting");
   lcd.setCursor(7,1); 
   lcd.print("up");
-  Timer1.initialize(10000000);
-  Timer1.attachInterrupt(My_timer_int_routine);
 }
 
-// Function to get a smoothed sensor reading using averaging
-float getAverageVoltageReading()
+void onButtonPress()
 {
-  unsigned long duration = 10000;
-  unsigned long startTime = millis();
-  float rawValue = 0;
-  int i = 0;
+  press++;
+  if(press == 5) press = 1;
+  Serial.print(press);
+  Serial.println(".NAPPIASDASDA");
+  printValue();
 
-  while(millis() - startTime < duration)
+  if(press == 3)
   {
-    rawValue += analogRead(analogPin);
-    i++;
+    if(!swap1) swap1 = true;
+    else swap1 = false;
   }
-  rawValue = rawValue/i;
-  return rawValue;
 }
 
-float getAverageFrequencyReading()
+void handleButtonPress() {
+  onButtonPress();
+}
+
+void getAverageReadings()
 {
   unsigned long duration = 10000;  // Measure for 10 seconds
   unsigned long startTime = millis();
-  unsigned long period = 0;
+  rawValue = 0;
+  averageFrequency = 0;
+
   unsigned long periodSum = 0;
-  int i = 0;
+  int fI = 0;
+  int vI = 0;
 
   while (millis() - startTime < duration)
   {
@@ -73,37 +84,83 @@ float getAverageFrequencyReading()
     unsigned long highTime = pulseIn(digitalPin, HIGH, 1000000);  // Timeout to avoid getting stuck
     unsigned long lowTime = pulseIn(digitalPin, LOW, 1000000);
     unsigned long period = highTime + lowTime;  // Total period of one cycle
-
-    if (period > 0) {
+    
+    Serial.print("Period:");
+    Serial.println(period);
+    if (period > 0)
+    {
       periodSum += period;
-      i++;
+      fI++;
     }
+    rawValue += analogRead(analogPin);
+    vI++;
   }
-  if (i == 0) return 0;  // Prevent division by zero
-  float avgPeriod = (float)periodSum / i;  // Average period in microseconds
-  float averageFrequency = 1000000.0 / avgPeriod;  // Convert to Hz
-  return averageFrequency;
+
+  if (fI == 0) averageFrequency = 0; // Prevent division by zero
+
+  else
+  {
+    float avgPeriod = periodSum / fI;  // Average period in microseconds
+    averageFrequency = 1000000.0 / avgPeriod;  // Convert to Hz
+  }
+  rawValue = rawValue/vI;
+  Serial.println(fI);
+  Serial.print("average frec:");
+  Serial.println(averageFrequency);
 }
 
 void loop()
 {
-    float rawValue = getAverageVoltageReading();  // Get averaged sensor value
-    float voltage = rawValue * (5.0 / 1024.0);  // Convert to voltage
-    temperature = convertVoltageToTemperature(voltage);  // Convert to temperature
+  getAverageReadings();  // Get averaged sensor values
+  frec = averageFrequency;
+  voltage = rawValue * (5.0 / 1024.0);  // Convert to voltage
+  temperature = convertVoltageToTemperature(voltage);  // Convert to temperature
     
-    float frequency = getAverageFrequencyReading(); // Convert to Hz (microseconds to seconds)
-    windSpeed = -0.24 + frequency * 0.699;
-    printValue(temperature, voltage, rawValue, frequency, windSpeed);
+  windSpeed = -0.24 + frec * 0.699;
+
+  printValue();
+  send_MQTT_message(temperature, windSpeed); // Kutsutaan MQTT-viestin lähettämis-funktiota
+  Serial.println("PAM");
 }
 
 // Function to display temperature on LCD
-void printValue(float value ,float voltage, float rawValue, float frequency, float windSpeed) 
+void printValue() 
 {
-  lcd.clear();  // Clear display before updating
-  lcd.setCursor(0, 0);
-  lcd.print("Temp: "); lcd.print(value); lcd.print(" C");
-  lcd.setCursor(0, 1);
-  lcd.print("M/S: "); lcd.print(windSpeed);
+  switch (press) {
+  case 1:
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(Ethernet.localIP());
+    break;
+  case 2:
+    lcd.clear();  // Clear display before updating
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: "); lcd.print(temperature); lcd.print(" C");
+    lcd.setCursor(0, 1);
+    lcd.print("M/S: "); lcd.print(windSpeed);
+    break;
+  case 3:
+    lcd.clear();  // Clear display before updating
+    lcd.setCursor(0, 0);
+    
+    if(swap1)
+    {
+      lcd.print("Voltage: "); lcd.print(voltage);
+    }
+    else
+    {
+      lcd.print("F: "); lcd.print(frec);
+    }
+    break;
+  case 4:
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Toimmii :)");
+    break;
+  default:
+    lcd.clear();
+    lcd.print("ERROR :)");
+}
 }
 
 // Function to convert voltage to temperature
@@ -123,14 +180,6 @@ float convertVoltageToTemperature(float voltage)
         return 25;  // Max temperature limit
     }
 }
-
-void My_timer_int_routine()
-{
-  send_MQTT_message(temperature, windSpeed); // Kutsutaan MQTT-viestin lähettämis-funktiota
-  Serial.println("PAM");
-}
-
-
 
 void fetch_IP() {
     bool connectionSuccess = Ethernet.begin(mymac); // Yhdistäminen Ethernet-verkkoon ja tallennetaan yhteyden tila
